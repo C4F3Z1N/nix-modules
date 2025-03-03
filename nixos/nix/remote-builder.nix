@@ -1,17 +1,20 @@
 {
   config,
   lib,
+  modulesPath,
   options,
+  pkgs,
   ...
 }:
 with builtins // lib; let
   cfg = config.nix.remote-builder;
-  opt = options.nix.remote-builder;
   userOpts = options.users.users.type.getSubOptions [];
 in {
+  disabledModules = [(modulesPath + "/services/misc/nix-ssh-serve.nix")];
+
   options.nix.remote-builder = with types; {
     inherit (userOpts.openssh.authorizedKeys) keyFiles keys;
-    shell = userOpts.shell // {default = config.programs.rush.shell;};
+    shell = userOpts.shell // {default = config.security.wrapperDir + "/rush";};
     username = userOpts.name // {default = "nix-remote-builder";};
 
     enable = mkOption {
@@ -21,26 +24,28 @@ in {
   };
 
   config = mkIf cfg.enable (mkMerge [
-    (mkIf (cfg.shell == opt.shell.default) {
-      assertions = [
-        {
-          assertion = config.programs.rush.enable;
-          message = "# TODO!";
-        }
-      ];
+    (mkIf (cfg.shell == config.security.wrapperDir + "/rush") {
+      environment.etc."rush.rc".text = mkDefault ''
+        rush 2.0
 
-      programs.rush = {
-        enable = mkDefault true;
-
-        # TODO: explore systemd-inhibit usage;
-        rules."nix-remote-builder" = ''
+        rule nix-remote-builder
           clrenv
-          keepenv PATH
+          keepenv PATH SSH_* TERM*
           match $command ~ "^nix-(daemon|store)"
           match $user == "${cfg.username}"
-          insert [0] = "${config.environment.usrbinenv}"
+          insert [0] = "/run/current-system/sw/bin/env"
           insert [1] = "-S"
-        '';
+      '';
+
+      security.wrappers.rush = mkDefault {
+        inherit (config.security.wrappers.su) group owner permissions;
+        setuid = true;
+
+        source = getExe (pkgs.rush.overrideAttrs (prev: {
+          configureFlags = ["--sysconfdir=/etc"];
+          installFlags = ["sysconfdir=$(out)/etc"];
+          meta.mainProgram = prev.pname;
+        }));
       };
     })
 
