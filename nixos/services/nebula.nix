@@ -274,8 +274,9 @@ in {
 
       users.users.nebula = {
         inherit (config.users.users.nobody) shell;
-        group = "nebula";
+        createHome = true;
         home = "/etc/nebula";
+        group = "nebula";
         isSystemUser = true;
       };
 
