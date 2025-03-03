@@ -4,7 +4,7 @@ repository:
   name: nix-modules
   description: Collection of custom-made modules for NixOS
   topics: nix, nixos, gitops
-  private: true
+  private: false
   has_issues: false
   has_projects: false
   has_wiki: false
