@@ -50,12 +50,12 @@ with builtins // lib; let
           dns = {
             host = mkOption {
               type = singleLineStr;
-              default = "127.0.0.42";
+              default = config.listen.host;
             };
 
             port = mkOption {
               type = port;
-              default = 53;
+              default = 4253;
             };
           };
 
