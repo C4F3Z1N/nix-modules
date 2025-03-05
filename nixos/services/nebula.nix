@@ -50,12 +50,12 @@ with builtins // lib; let
           dns = {
             host = mkOption {
               type = singleLineStr;
-              default = "127.0.0.42";
+              default = config.listen.host;
             };
 
             port = mkOption {
               type = port;
-              default = 53;
+              default = 4253;
             };
           };
 
@@ -291,6 +291,7 @@ in {
         description = "Nebula overlay networking tool";
         wantedBy = ["multi-user.target"];
         wants = ["basic.target"];
+        reloadTriggers = attrValues cfg.config.pki;
 
         serviceConfig = rec {
           AmbientCapabilities = CapabilityBoundingSet;

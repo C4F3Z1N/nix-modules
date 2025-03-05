@@ -93,7 +93,7 @@ in {
           host-gpg-agent = rec {
             after = requires;
             environment.GNUPGHOME = cfg.homedir;
-            reloadTriggers = ["${cfg.homedir}/gpg-agent.conf"];
+            reloadTriggers = attrValues confFiles;
             requires = mapAttrsToList (name: _: "${name}.socket") sockets;
 
             serviceConfig = {
