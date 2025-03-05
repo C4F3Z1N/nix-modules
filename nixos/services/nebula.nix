@@ -291,6 +291,7 @@ in {
         description = "Nebula overlay networking tool";
         wantedBy = ["multi-user.target"];
         wants = ["basic.target"];
+        reloadTriggers = attrValues cfg.config.pki;
 
         serviceConfig = rec {
           AmbientCapabilities = CapabilityBoundingSet;
