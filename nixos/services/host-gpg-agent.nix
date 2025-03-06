@@ -79,7 +79,7 @@ in {
           IdentityAgent ${cfg.runtimedir}/S.gpg-agent.ssh
         Match All
 
-        Match host * exec "${cfg.package}/bin/gpg-connect-agent --quiet updatestartuptty /bye"
+        Match host * exec "gpg-connect-agent --quiet updatestartuptty /bye"
       '';
 
       services.openssh.extraConfig = "HostKeyAgent ${cfg.runtimedir}/S.gpg-agent.ssh";
@@ -91,59 +91,56 @@ in {
       systemd = rec {
         services = {
           host-gpg-agent = rec {
+            description = "GnuPG cryptographic agent and passphrase cache";
+            documentation = ["man:gpg-agent(1)"];
+
             after = requires;
             environment.GNUPGHOME = cfg.homedir;
+            path = [cfg.package];
             reloadTriggers = attrValues confFiles;
             requires = mapAttrsToList (name: _: "${name}.socket") sockets;
+            unitConfig.RefuseManualStart = true;
 
             serviceConfig = {
-              ExecReload = "${cfg.package}/bin/gpgconf --reload gpg-agent";
+              ExecReload = "${config.environment.usrbinenv} -S -- gpgconf --reload gpg-agent";
               ExecStart =
-                "${cfg.package}/bin/gpg-agent --supervised"
+                "${config.environment.usrbinenv} -S -- gpg-agent --supervised"
                 + optionalString cfg.verbose " --verbose";
-            };
-
-            unitConfig = {
-              Description = "GnuPG cryptographic agent and passphrase cache";
-              Documentation = "man:gpg-agent(1)";
-              RefuseManualStart = true;
             };
           };
         };
 
         sockets = listToAttrs (map (type: {
             name = "host-gpg-agent" + optionalString (type != "std") "-${type}";
-            value = {
-              partOf = ["host-gpg-agent.service"];
-              wantedBy = ["sockets.target"];
 
-              socketConfig = rec {
-                DirectoryMode = "0700";
-                FileDescriptorName = type;
-                ListenStream =
-                  "${cfg.runtimedir}/S.gpg-agent"
-                  + optionalString (type != "std") ".${type}";
-                RemoveOnStop = true;
-                Service = "host-gpg-agent.service";
-                SocketMode = "0600";
-                Symlinks = "${cfg.homedir}/${baseNameOf ListenStream}";
-              };
-
-              unitConfig = with services.host-gpg-agent.unitConfig;
+            value =
+              (
                 if type == "ssh"
                 then {
-                  Description = "GnuPG cryptographic agent (ssh-agent emulation)";
-                  Documentation =
-                    Documentation
-                    + " man:ssh-add(1) man:ssh-agent(1) man:ssh(1)";
+                  description = "GnuPG cryptographic agent (ssh-agent emulation)";
+                  documentation = services.host-gpg-agent.documentation ++ ["man:ssh-add(1)" "man:ssh-agent(1)" "man:ssh(1)"];
                 }
                 else {
-                  inherit Documentation;
-                  Description =
-                    Description
-                    + optionalString (type != "std") " (${type})";
+                  inherit (services.host-gpg-agent) documentation;
+                  description = services.host-gpg-agent.description + optionalString (type != "std") " (${type})";
+                }
+              )
+              // {
+                partOf = ["host-gpg-agent.service"];
+                wantedBy = ["sockets.target"];
+
+                socketConfig = rec {
+                  DirectoryMode = "0700";
+                  FileDescriptorName = type;
+                  ListenStream =
+                    "${cfg.runtimedir}/S.gpg-agent"
+                    + optionalString (type != "std") ".${type}";
+                  RemoveOnStop = true;
+                  Service = "host-gpg-agent.service";
+                  SocketMode = "0600";
+                  Symlinks = "${cfg.homedir}/${baseNameOf ListenStream}";
                 };
-            };
+              };
           })
           cfg.sockets);
 

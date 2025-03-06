@@ -17,23 +17,7 @@ with builtins // lib; let
       freeformType = format.type;
 
       options = {
-        pki = {
-          ca = mkOption {
-            type = path;
-            default = "/etc/nebula/ca.crt";
-          };
-
-          cert = mkOption {
-            type = path;
-            default = "/etc/nebula/host.crt";
-          };
-
-          key = mkOption {
-            type = path;
-            default = "/etc/nebula/host.key";
-          };
-        };
-
+        pki = genAttrs ["ca" "cert" "key"] (_: mkOption {type = path;});
         static_host_map = mkOption {type = attrsOf (listOf singleLineStr);};
 
         lighthouse = {
@@ -250,11 +234,29 @@ in {
       type = attrs;
       readOnly = true;
     };
+
+    homedir = mkOption {
+      type = nullOr path;
+      default = null;
+    };
   };
 
   config = mkIf cfg.enable (mkMerge [
     (mkIf (!cfg.config.tun.disabled) {
       networking.firewall.trustedInterfaces = [cfg.config.tun.dev];
+    })
+
+    (mkIf (!isNull cfg.homedir) {
+      users.users.nebula = {
+        createHome = true;
+        home = cfg.homedir;
+      };
+
+      systemd.tmpfiles.rules =
+        optional (!hasPrefix cfg.homedir cfg.config.pki.ca) "L+ ${cfg.homedir}/ca.crt - nebula nebula - ${cfg.config.pki.ca}"
+        ++ optional (!hasPrefix cfg.homedir cfg.config.pki.cert) "L+ ${cfg.homedir}/host.crt - nebula nebula - ${cfg.config.pki.cert}"
+        ++ optional (!hasPrefix cfg.homedir cfg.config.pki.key) "L+ ${cfg.homedir}/host.key - nebula nebula - ${cfg.config.pki.key}"
+        ++ ["L+ ${cfg.homedir}/config.yaml - nebula nebula - ${format.generate "config.yaml" cfg.config}"];
     })
 
     (mkIf (cfg.config.listen.port != 0) {
@@ -273,9 +275,6 @@ in {
       users.groups.nebula = {};
 
       users.users.nebula = {
-        inherit (config.users.users.nobody) shell;
-        createHome = true;
-        home = "/etc/nebula";
         group = "nebula";
         isSystemUser = true;
       };
@@ -286,20 +285,23 @@ in {
       );
 
       systemd.services.nebula = {
-        unitConfig.StartLimitIntervalSec = 0; # ensure Restart=always is always honoured (networks can go down for arbitrarily long)
-        after = ["basic.target" "network.target"];
         description = "Nebula overlay networking tool";
+        documentation = ["https://nebula.defined.net/docs"];
+
+        after = ["basic.target" "network.target"];
+        path = [cfg.package];
+        reloadTriggers = attrValues cfg.config.pki;
+        unitConfig.StartLimitIntervalSec = 0; # ensure Restart=always is always honoured (networks can go down for arbitrarily long)
         wantedBy = ["multi-user.target"];
         wants = ["basic.target"];
-        reloadTriggers = attrValues cfg.config.pki;
 
         serviceConfig = rec {
           AmbientCapabilities = CapabilityBoundingSet;
+          CPUSchedulingPolicy = "idle";
           DeviceAllow = "/dev/net/tun rw";
           DevicePolicy = "closed";
-          ExecReload = "${dirOf config.environment.usrbinenv}/kill -SIGHUP $MAINPID";
+          ExecReload = "${config.environment.usrbinenv} -S -- kill -SIGHUP $MAINPID";
           ExecStartPre = "${ExecStart} -test";
-          ExecStart = "${cfg.package}/bin/nebula -config " + format.generate "config.yaml" cfg.config;
           Group = "nebula";
           LockPersonality = true;
           NoNewPrivileges = true;
@@ -324,12 +326,13 @@ in {
           UMask = "0027";
           User = "nebula";
 
-          # experimental;
-          CPUSchedulingPolicy = "idle";
-          IOSchedulingClass = "best-effort";
-          IOSchedulingPriority = 4;
-          MemoryAccounting = true;
-          MemoryMax = "25%";
+          ExecStart =
+            "${config.environment.usrbinenv} -S -- nebula -config "
+            + (
+              if isNull cfg.homedir
+              then format.generate "config.yaml" cfg.config
+              else "${cfg.homedir}/config.yaml"
+            );
 
           CapabilityBoundingSet =
             ["CAP_NET_ADMIN"]
