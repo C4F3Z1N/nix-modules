@@ -17,7 +17,7 @@ with builtins // lib; let
       freeformType = format.type;
 
       options = {
-        pki = genAttrs ["ca" "cert" "key"] (_: mkOption {type = path;});
+        pki = attrsets.genAttrs ["ca" "cert" "key"] (_: mkOption {type = path;});
         static_host_map = mkOption {type = attrsOf (listOf singleLineStr);};
 
         lighthouse = {
@@ -264,7 +264,7 @@ in {
     })
 
     (mkIf cfg.config.lighthouse.serve_dns {
-      networking.firewall = genAttrs [
+      networking.firewall = attrsets.genAttrs [
         "allowedTCPPorts"
         "allowedUDPPorts"
       ] (_: [cfg.config.lighthouse.dns.port]);
