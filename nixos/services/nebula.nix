@@ -279,6 +279,7 @@ in {
         isSystemUser = true;
       };
 
+      # TODO: check if this still works with local paths (i.e: /etc/nebula/host.crt);
       services.nebula.details = trivial.importJSON (
         pkgs.runCommand "nebula-cert-details.json" {buildInputs = [cfg.package pkgs.jq];} ''
           nebula-cert print -json -path ${cfg.config.pki.cert} | jq \
