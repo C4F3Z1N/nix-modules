@@ -280,8 +280,13 @@ in {
       };
 
       services.nebula.details = trivial.importJSON (
-        pkgs.runCommand "nebula-cert-details" {buildInputs = [cfg.package pkgs.jq];}
-        "nebula-cert print -json -path ${cfg.config.pki.cert} | jq '.details' | tee $out"
+        pkgs.runCommand "nebula-cert-details.json" {buildInputs = [cfg.package pkgs.jq];} ''
+          nebula-cert print -json -path ${cfg.config.pki.cert} | jq \
+            --compact-output \
+            --monochrome-output \
+            --raw-output \
+            '.details' > $out
+        ''
       );
 
       systemd.services.nebula = {
