@@ -86,7 +86,7 @@ in {
     })
 
     {
-      environment.systemPackages = [cfg.package];
+      users.users.root.packages = [cfg.package];
 
       systemd = rec {
         services = {
