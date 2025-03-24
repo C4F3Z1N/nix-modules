@@ -102,9 +102,9 @@ in {
             unitConfig.RefuseManualStart = true;
 
             serviceConfig = {
-              ExecReload = "${config.environment.usrbinenv} -S -- gpgconf --reload gpg-agent";
+              ExecReload = "${cfg.package}/bin/gpgconf --reload gpg-agent";
               ExecStart =
-                "${config.environment.usrbinenv} -S -- gpg-agent --supervised"
+                "${cfg.package}/bin/gpg-agent --supervised"
                 + optionalString cfg.verbose " --verbose";
             };
           };

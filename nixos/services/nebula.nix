@@ -306,7 +306,7 @@ in {
           CPUSchedulingPolicy = "idle";
           DeviceAllow = "/dev/net/tun rw";
           DevicePolicy = "closed";
-          ExecReload = "${config.environment.usrbinenv} -S -- kill -SIGHUP $MAINPID";
+          ExecReload = "${dirOf config.environment.usrbinenv}/kill -SIGHUP $MAINPID";
           ExecStartPre = "${ExecStart} -test";
           Group = "nebula";
           LockPersonality = true;
@@ -333,7 +333,7 @@ in {
           User = "nebula";
 
           ExecStart =
-            "${config.environment.usrbinenv} -S -- nebula -config "
+            "${cfg.package}/bin/nebula -config "
             + (
               if isNull cfg.homedir
               then format.generate "config.yaml" cfg.config
