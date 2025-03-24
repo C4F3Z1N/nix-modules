@@ -14,7 +14,8 @@ in {
 
   options.nix.remote-builder = with types; {
     inherit (userOpts.openssh.authorizedKeys) keyFiles keys;
-    shell = userOpts.shell // {default = config.security.wrapperDir + "/rush";};
+    shell = userOpts.shell // {default = pkgs.rush;};
+    # shell = userOpts.shell // {default = config.security.wrapperDir + "/rush";};
     username = userOpts.name // {default = "nix-remote-builder";};
 
     enable = mkOption {
@@ -24,29 +25,29 @@ in {
   };
 
   config = mkIf cfg.enable (mkMerge [
-    (mkIf (cfg.shell == config.security.wrapperDir + "/rush") {
+    # (mkIf (cfg.shell == config.security.wrapperDir + "/rush") {
+    (mkIf (attrsets.isDerivation cfg.shell && (strings.getName cfg.shell) == "rush") {
       environment.etc."rush.rc".text = mkDefault ''
         rush 2.0
 
         rule nix-remote-builder
           clrenv
-          keepenv PATH SSH_* TERM*
+          keepenv SSH_* TERM*
           match $command ~ "^nix-(daemon|store)"
           match $user == "${cfg.username}"
-          insert [0] = "/run/current-system/sw/bin/env"
-          insert [1] = "-S"
+          chdir "${config.nix.package}/bin"
       '';
 
-      security.wrappers.rush = mkDefault {
-        inherit (config.security.wrappers.su) group owner permissions;
-        setuid = true;
+      # security.wrappers.rush = mkDefault {
+      #   inherit (config.security.wrappers.su) group owner permissions;
+      #   setuid = true;
 
-        source = getExe (pkgs.rush.overrideAttrs (prev: {
-          configureFlags = ["--sysconfdir=/etc"];
-          installFlags = ["sysconfdir=$(out)/etc"];
-          meta.mainProgram = prev.pname;
-        }));
-      };
+      #   source = getExe (pkgs.rush.overrideAttrs (prev: {
+      #     configureFlags = ["--sysconfdir=/etc"];
+      #     installFlags = ["sysconfdir=$(out)/etc"];
+      #     meta.mainProgram = prev.pname;
+      #   }));
+      # };
     })
 
     {
