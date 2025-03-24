@@ -272,12 +272,6 @@ in {
 
     {
       environment.systemPackages = [cfg.package];
-      users.groups.nebula = {};
-
-      users.users.nebula = {
-        group = "nebula";
-        isSystemUser = true;
-      };
 
       # TODO: check if this still works with local paths (i.e: /etc/nebula/host.crt);
       services.nebula.details = trivial.importJSON (
@@ -346,6 +340,16 @@ in {
               cfg.config.lighthouse.dns.port
               cfg.config.listen.port
             ]) "CAP_NET_BIND_SERVICE";
+        };
+      };
+
+      users = {
+        groups.nebula = {};
+
+        users.nebula = {
+          group = "nebula";
+          isSystemUser = true;
+          packages = [cfg.package];
         };
       };
     }

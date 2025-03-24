@@ -50,8 +50,8 @@ in {
     })
 
     {
+      environment.shells = [cfg.shell];
       nix.settings.trusted-users = [cfg.username];
-      users.groups."${cfg.username}" = {};
 
       assertions = [
         {
@@ -59,13 +59,6 @@ in {
           message = "The remote builder uses depends on {option}`services.openssh` to work. Please enable it.";
         }
       ];
-
-      users.users."${cfg.username}" = {
-        inherit (cfg) shell;
-        group = "${cfg.username}";
-        isSystemUser = true;
-        openssh.authorizedKeys = {inherit (cfg) keyFiles keys;};
-      };
 
       services.openssh.extraConfig = ''
         Match User ${cfg.username}
@@ -76,6 +69,17 @@ in {
           X11Forwarding no
         Match All
       '';
+
+      users = {
+        groups."${cfg.username}" = {};
+
+        users."${cfg.username}" = {
+          inherit (cfg) shell;
+          group = "${cfg.username}";
+          isSystemUser = true;
+          openssh.authorizedKeys = {inherit (cfg) keyFiles keys;};
+        };
+      };
     }
   ]);
 }
